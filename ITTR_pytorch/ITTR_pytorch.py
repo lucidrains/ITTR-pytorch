@@ -89,7 +89,7 @@ class HPB(nn.Module):
         conv_branch_out = self.dwconv(x)
 
         concatted_branches = torch.cat((attn_branch_out, conv_branch_out), dim = 1)
-        attn_out = self.attn_parallel_combine_out(concatted_branches)
+        attn_out = self.attn_parallel_combine_out(concatted_branches) + x
 
         return self.ff(attn_out)
 
