@@ -135,24 +135,35 @@ class DPSA(nn.Module):
 
         q, k = map(l2norm, (q, k))
 
+        # calculate whether select and ranks along height and width is necessary
+
+        need_height_select_and_rank = self.height_top_k < h
+        need_width_select_and_rank = self.width_top_k < w
+
         # select and rank keys / values, probing with summed query along keys reduced along row and column
 
-        q_probe = reduce(q, 'b h w d -> b d', 'sum')
-        k_height = reduce(k, 'b h w d -> b h d', 'sum')
-        k_width = reduce(k, 'b h w d -> b w d', 'sum')
-
-        top_h_indices = einsum('b d, b h d -> b h', q_probe, k_height).topk(k = self.height_top_k, dim = -1).indices
-        top_w_indices = einsum('b d, b w d -> b w', q_probe, k_width).topk(k = self.width_top_k, dim = -1).indices
+        if need_width_select_and_rank or need_height_select_and_rank:
+            q_probe = reduce(q, 'b h w d -> b d', 'sum')
 
         # gather along height, then width
 
-        top_h_indices = repeat(top_h_indices, 'b h -> b h w d', d = self.dim_head, w = k.shape[-2])
+        if need_height_select_and_rank:
+            k_height = reduce(k, 'b h w d -> b h d', 'sum')
 
-        k, v = map(lambda t: t.gather(1, top_h_indices), (k, v)) # first gather across height
+            top_h_indices = einsum('b d, b h d -> b h', q_probe, k_height).topk(k = self.height_top_k, dim = -1).indices
 
-        top_w_indices = repeat(top_w_indices, 'b w -> b h w d', d = self.dim_head, h = k.shape[1])
+            top_h_indices = repeat(top_h_indices, 'b h -> b h w d', d = self.dim_head, w = k.shape[-2])
 
-        k, v = map(lambda t: t.gather(2, top_w_indices), (k, v)) # then gather along width
+            k, v = map(lambda t: t.gather(1, top_h_indices), (k, v)) # first gather across height
+
+        if need_width_select_and_rank:
+            k_width = reduce(k, 'b h w d -> b w d', 'sum')
+
+            top_w_indices = einsum('b d, b w d -> b w', q_probe, k_width).topk(k = self.width_top_k, dim = -1).indices
+
+            top_w_indices = repeat(top_w_indices, 'b w -> b h w d', d = self.dim_head, h = k.shape[1])
+
+            k, v = map(lambda t: t.gather(2, top_w_indices), (k, v)) # then gather along width
 
         # select the appropriate keys and values
 
