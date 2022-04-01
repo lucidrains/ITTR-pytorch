@@ -1,8 +1,38 @@
 <img src="./ittr.png" width="500px"></img>
 
-## ITTR - Pytorch (wip)
+## ITTR - Pytorch
 
-Implementation of the Hybrid Perception Block and Dual-Pruned Self-Attention block from the <a href="https://arxiv.org/abs/2203.16015">ITTR paper</a> for Image to Image Translation using Transformers.
+Implementation of the Hybrid Perception Block (`HPB`) and Dual-Pruned Self-Attention (`DPSA`) block from the <a href="https://arxiv.org/abs/2203.16015">ITTR paper</a> for Image to Image Translation using Transformers.
+
+## Install
+
+```bash
+$ pip install ITTR-pytorch
+```
+
+## Usage
+
+They had 9 blocks of Hybrid Perception Block (HPB) in the paper
+
+```python
+import torch
+from ITTR_pytorch import HPB
+
+block = HPB(
+    dim = 512,              # dimension
+    dim_head = 32,          # dimension per attention head
+    heads = 8,              # number of attention heads
+    attn_height_top_k = 16, # number of top indices to select along height, for the attention pruning
+    attn_width_top_k = 16,  # number of top indices to select along width, for the attention pruning
+    attn_dropout = 0.,      # attn dropout
+    ff_mult = 4,            # expansion factor of feedforward
+    ff_dropout = 0.         # feedforward dropout
+)
+
+fmap = torch.randn(1, 512, 32, 32)
+
+out = block(fmap) # (1, 512, 32, 32)
+```
 
 ## Citations
 
