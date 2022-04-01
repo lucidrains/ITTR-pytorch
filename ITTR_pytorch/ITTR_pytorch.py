@@ -135,12 +135,12 @@ class DPSA(nn.Module):
 
         q, k = map(l2norm, (q, k))
 
-        # calculate whether select and ranks along height and width is necessary
+        # calculate whether to select and rank along height and width
 
         need_height_select_and_rank = self.height_top_k < h
         need_width_select_and_rank = self.width_top_k < w
 
-        # select and rank keys / values, probing with summed query along keys reduced along row and column
+        # select and rank keys / values, probing with query (reduced along height and width) and keys reduced along row and column respectively
 
         if need_width_select_and_rank or need_height_select_and_rank:
             q_probe = reduce(q, 'b h w d -> b d', 'sum')
@@ -169,11 +169,20 @@ class DPSA(nn.Module):
 
         q, k, v = map(lambda t: rearrange(t, 'b ... d -> b (...) d'), (q, k, v))
 
+        # cosine similarities
+
         sim = einsum('b i d, b j d -> b i j', q, k)
 
+        # attention
+
         attn = sim.softmax(dim = -1)
+        attn = self.dropout(attn)
+
+        # aggregate out
 
         out = einsum('b i j, b j d -> b i d', attn, v)
+
+        # merge heads and combine out
 
         out = rearrange(out, '(b h) (x y) d -> b (h d) x y', x = h, y = w, h = self.heads)
         return self.to_out(out)
