@@ -34,6 +34,26 @@ fmap = torch.randn(1, 512, 32, 32)
 out = block(fmap) # (1, 512, 32, 32)
 ```
 
+You can also use the dual-pruned self-attention as so
+
+```python
+import torch
+from ITTR_pytorch import DPSA
+
+attn = DPSA(
+    dim = 512,         # dimension
+    dim_head = 32,     # dimension per attention head
+    heads = 8,         # number of attention heads
+    height_top_k = 48, # number of top indices to select along height, for the attention pruning
+    width_top_k = 48,  # number of top indices to select along width, for the attention pruning
+    dropout = 0.       # attn dropout
+)
+
+fmap = torch.randn(1, 512, 32, 32)
+
+out = attn(fmap) # (1, 512, 32, 32)
+```
+
 ## Citations
 
 ```bibtex
